@@ -41,8 +41,16 @@ Python 3.9.6
 
 ```sh
 checkfor commandname
+	Inspect the installed commandname executable(s) and displays their locations.
+
 checkfor --version commandname
+    Inspect the installed commandname executable(s) and list their versions.
+
+checkfor --version
+    Without a commandname given it prints the version of checkfor itself.
+
 checkfor --help
+	Displays the full help page
 ```
 
 ### Examples
@@ -51,13 +59,18 @@ checkfor --help
 checkfor python
 checkfor --version gcc
 checkfor node
+checkfor --version checkfor
+    Inspect the installed checkfor executable(s) and their versions.
 ```
 
 ## Options
 
 | Option      | Description                                        |
 | ----------- | -------------------------------------------------- |
-| `--version` | Run `<command> --version` for every instance found. This obviously should only be used with commands that support the --version parameter. |
+| ----------- | -------------------------------------------------- |
+
+| `--version`  | Without a command: Print checkfor version and exit |
+| `--version`  | With a command: Run `<command> --version` for every instance found. This obviously should only be used with commands that support the --version parameter. |
 | `--help`    | Show detailed help text and exit                   |
 
 ## Environment Variables

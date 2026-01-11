@@ -1,6 +1,8 @@
 #!/usr/bin/env zsh
 # checkfor: list all instances of a command found in $PATH (and optionally run --version on each)
 
+CHECKFOR_VERSION="1.1.0"
+
 set -u
 
 # ---- ANSI colors (disable by setting NO_COLOR=1)
@@ -14,7 +16,9 @@ else
 fi
 
 usage() {
-  print -r -- "Usage: checkfor [--version] [--help] commandname"
+  print -r -- "Usage: checkfor [--version] commandname"
+  print -r -- "       checkfor --version"
+  print -r -- "       checkfor --help"
 }
 
 helptext() {
@@ -53,11 +57,20 @@ helptext() {
   print -r -- "  checkfor --version gcc"
   print -r -- "      List all gcc binaries and print their version output."
   print -r -- ""
+  print -r -- "  checkfor --version "
+  print -r -- "      Print checkfor version and exit"
+  print -r -- ""
   print -r -- "${C_HDR}EXIT STATUS${C_RST}"
   print -r -- "  0   Success"
   print -r -- "  1   Usage error"
   print -r -- "  127 Command not found in PATH"
 }
+
+# ---- Self version
+if (( $# == 1 )) && [[ "$1" == "--version" ]]; then
+  print -r -- "checkfor ${CHECKFOR_VERSION}"
+  exit 0
+fi
 
 # ---- Parse args
 do_version=0
