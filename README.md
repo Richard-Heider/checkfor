@@ -99,4 +99,6 @@ NO_COLOR=1 checkfor git
 
 ## License
 
-See repository license.
+MIT License.
+
+Use it, fork it, improve it, or throw it away — just don’t pretend you didn’t know which binary you were running anymore.
