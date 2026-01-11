@@ -1,0 +1,150 @@
+#!/usr/bin/env zsh
+# checkfor: list all instances of a command found in $PATH (and optionally run --version on each)
+
+set -u
+
+# ---- ANSI colors (disable by setting NO_COLOR=1)
+if [[ -n "${NO_COLOR-}" ]]; then
+  C_HDR="" C_KEY="" C_STAR="" C_RST=""
+else
+  C_HDR=$'\033[1;36m'   # bright cyan (section headers)
+  C_KEY=$'\033[1;33m'   # bright yellow (paths / labels)
+  C_STAR=$'\033[1;32m'  # bright green (active marker)
+  C_RST=$'\033[0m'
+fi
+
+usage() {
+  print -r -- "Usage: checkfor [--version] [--help] commandname"
+}
+
+helptext() {
+  print -r -- "${C_HDR}checkfor${C_RST} — inspect command resolution and versions"
+  print -r -- ""
+  print -r -- "${C_HDR}DESCRIPTION${C_RST}"
+  print -r -- "  checkfor helps diagnose which executable is actually used when"
+  print -r -- "  a command is invoked, and what other versions of that command"
+  print -r -- "  exist in the current \$PATH."
+  print -r -- ""
+  print -r -- "  This is especially useful on systems with multiple toolchains,"
+  print -r -- "  package managers (e.g. Homebrew), or custom PATH manipulation."
+  print -r -- ""
+  print -r -- "${C_HDR}BEHAVIOUR${C_RST}"
+  print -r -- "  1. Resolves the primary executable using shell resolution."
+  print -r -- "  2. Scans every directory in \$PATH for other executable instances."
+  print -r -- "  3. Lists all discovered paths, highlighting the active one."
+  print -r -- "  4. Optionally executes '--version' on each instance."
+  print -r -- ""
+  print -r -- "${C_HDR}OPTIONS${C_RST}"
+  print -r -- "  --version"
+  print -r -- "      Execute '<command> --version' for every instance found and"
+  print -r -- "      display the output below the listing."
+  print -r -- ""
+  print -r -- "  --help"
+  print -r -- "      Show this help text and exit."
+  print -r -- ""
+  print -r -- "${C_HDR}ENVIRONMENT${C_RST}"
+  print -r -- "  NO_COLOR=1"
+  print -r -- "      Disable ANSI color output (useful for CI or logging)."
+  print -r -- ""
+  print -r -- "${C_HDR}EXAMPLES${C_RST}"
+  print -r -- "  checkfor python"
+  print -r -- "      Show which python is used and all other python binaries in PATH."
+  print -r -- ""
+  print -r -- "  checkfor --version gcc"
+  print -r -- "      List all gcc binaries and print their version output."
+  print -r -- ""
+  print -r -- "${C_HDR}EXIT STATUS${C_RST}"
+  print -r -- "  0   Success"
+  print -r -- "  1   Usage error"
+  print -r -- "  127 Command not found in PATH"
+}
+
+# ---- Parse args
+do_version=0
+cmd=""
+
+if (( $# == 0 )); then
+  usage
+  exit 1
+fi
+
+case "$1" in
+  --help)
+    helptext
+    exit 0
+    ;;
+esac
+
+if (( $# == 1 )); then
+  if [[ "$1" == "--version" ]]; then
+    usage
+    exit 1
+  fi
+  cmd="$1"
+elif (( $# == 2 )); then
+  if [[ "$1" != "--version" ]]; then
+    usage
+    exit 1
+  fi
+  do_version=1
+  cmd="$2"
+else
+  usage
+  exit 1
+fi
+
+# ---- Resolve primary command
+primary_path="$(command -v -- "$cmd" 2>/dev/null || true)"
+
+if [[ -z "$primary_path" ]]; then
+  print -r -- "Not found in PATH: $cmd"
+  exit 127
+fi
+
+print -r -- "${C_HDR}Using:${C_RST} ${C_KEY}$primary_path${C_RST}"
+
+# ---- Enumerate all instances in $PATH
+typeset -a path_dirs
+typeset -a found_paths
+typeset -A seen
+
+path_dirs=("${(s/:/)PATH}")
+
+for d in "${path_dirs[@]}"; do
+  [[ -d "$d" ]] || continue
+  candidate="$d/$cmd"
+  if [[ -f "$candidate" && -x "$candidate" ]]; then
+    canon="$(cd -P -- "$d" 2>/dev/null && print -r -- "$PWD/$cmd" || print -r -- "$candidate")"
+    [[ -z "${seen[$canon]-}" ]] || continue
+    seen[$canon]=1
+    found_paths+=("$canon")
+  fi
+done
+
+# Ensure primary included once
+if [[ -z "${seen[$primary_path]-}" ]]; then
+  found_paths=("$primary_path" "${found_paths[@]}")
+fi
+
+print -r -- ""
+print -r -- "${C_HDR}Found in PATH (${#found_paths[@]}):${C_RST}"
+
+for p in "${found_paths[@]}"; do
+  if [[ "$p" == "$primary_path" ]]; then
+    print -r -- "  ${C_STAR}*${C_RST} ${C_KEY}$p${C_RST}"
+  else
+    print -r -- "    $p"
+  fi
+done
+
+# ---- Optional version output
+if (( do_version )); then
+  print -r -- ""
+  print -r -- "${C_HDR}Version output (--version):${C_RST}"
+
+  for p in "${found_paths[@]}"; do
+    print -r -- ""
+    print -r -- "${C_KEY}==> $p --version${C_RST}"
+    "$p" --version 2>&1 || print -r -- "[exit $?: failed to run]"
+  done
+fi
